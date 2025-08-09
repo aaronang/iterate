@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from "react"
-import { Send, Image, X } from "lucide-react"
+import { ArrowUp, Image, X, PackageSearch } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   Sidebar,
   SidebarContent,
@@ -163,7 +169,7 @@ export function ChatSidebar() {
   }
 
   return (
-    <Sidebar className="w-80 border-r">
+    <Sidebar className="border-r">
       <SidebarContent className="flex-1 p-0">
         <ScrollArea className="flex-1 px-4">
           <div className="space-y-4 py-4">
@@ -264,12 +270,11 @@ export function ChatSidebar() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
             onPaste={handlePaste}
-            className={`min-h-[80px] max-h-[400px] resize-none border-0 focus-visible:ring-0 shadow-none overflow-y-auto scrollbar-thin ${
+            className={`max-h-[400px] resize-none border-0 focus-visible:ring-0 shadow-none overflow-y-auto scrollbar-thin ${
               attachedFiles.length > 0 ? 'pt-2' : ''
             }`}
             style={{
               height: 'auto',
-              minHeight: '80px',
               maxHeight: '400px'
             }}
             onInput={(e) => {
@@ -280,25 +285,64 @@ export function ChatSidebar() {
           />
 
           {/* Bottom toolbar within the container */}
-          <div className="flex justify-between items-center p-2">
-            <div className="flex gap-1">
-              <Button
-                onClick={handleAttachFile}
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0"
-              >
-                <Image className="h-4 w-4" />
-              </Button>
+          <div className="flex justify-between items-center p-1.5">
+            <div className="flex gap-0.5">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleAttachFile}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0"
+                      disabled={attachedFiles.length >= 3}
+                    >
+                      <Image className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{attachedFiles.length >= 3 ? 'Maximum 3 attachments' : 'Attach image'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={() => {
+                        // TODO: Add package search functionality
+                        console.log('Package search clicked')
+                      }}
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0"
+                    >
+                      <PackageSearch className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Browse components</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <Button
-              onClick={handleSendMessage}
-              size="sm"
-              className="h-8 w-8 p-0"
-              disabled={!input.trim() && attachedFiles.length === 0}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleSendMessage}
+                    size="sm"
+                    className="h-6 w-6 p-0 rounded-full"
+                    disabled={!input.trim() && attachedFiles.length === 0}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Send message</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </SidebarFooter>

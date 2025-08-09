@@ -38,6 +38,10 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  sidebarWidthPx: number
+  setSidebarWidthPx: (width: number) => void
+  minSidebarWidthPx: number
+  maxSidebarWidthPx: number
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -66,6 +70,10 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const minSidebarWidthPx = 240
+  const maxSidebarWidthPx = 640
+  // Default to 320px to match previous w-80 and provide a comfortable starting width
+  const [sidebarWidthPx, setSidebarWidthPx] = React.useState<number>(320)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -120,8 +128,12 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      sidebarWidthPx,
+      setSidebarWidthPx,
+      minSidebarWidthPx,
+      maxSidebarWidthPx,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, sidebarWidthPx]
   )
 
   return (
@@ -131,7 +143,7 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
+              "--sidebar-width": `${sidebarWidthPx}px`,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
               ...style,
             } as React.CSSProperties
@@ -161,7 +173,55 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const {
+    isMobile,
+    state,
+    openMobile,
+    setOpenMobile,
+    sidebarWidthPx,
+    setSidebarWidthPx,
+    minSidebarWidthPx,
+    maxSidebarWidthPx,
+  } = useSidebar()
+
+  const isDraggingRef = React.useRef(false)
+  const startXRef = React.useRef(0)
+  const startWidthRef = React.useRef(0)
+  const [isDragging, setIsDragging] = React.useState(false)
+
+  const onMouseMove = React.useCallback(
+    (event: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const deltaX = event.clientX - startXRef.current
+      let nextWidth = side === "left" ? startWidthRef.current + deltaX : startWidthRef.current - deltaX
+      nextWidth = Math.max(minSidebarWidthPx, Math.min(maxSidebarWidthPx, nextWidth))
+      setSidebarWidthPx(nextWidth)
+    },
+    [maxSidebarWidthPx, minSidebarWidthPx, setSidebarWidthPx, side]
+  )
+
+  const onMouseUp = React.useCallback(() => {
+    if (!isDraggingRef.current) return
+    isDraggingRef.current = false
+    setIsDragging(false)
+    document.body.style.userSelect = ""
+    document.removeEventListener("mousemove", onMouseMove)
+    document.removeEventListener("mouseup", onMouseUp)
+  }, [onMouseMove])
+
+  const onMouseDownResize = React.useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault()
+      isDraggingRef.current = true
+      setIsDragging(true)
+      startXRef.current = event.clientX
+      startWidthRef.current = sidebarWidthPx
+      document.body.style.userSelect = "none"
+      document.addEventListener("mousemove", onMouseMove)
+      document.addEventListener("mouseup", onMouseUp)
+    },
+    [onMouseMove, onMouseUp, sidebarWidthPx]
+  )
 
   if (collapsible === "none") {
     return (
@@ -216,7 +276,8 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+          "relative w-(--sidebar-width) bg-transparent",
+          !isDragging && "transition-[width] duration-200 ease-linear",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -227,7 +288,8 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) md:flex",
+          !isDragging && "transition-[left,right,width] duration-200 ease-linear",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -246,6 +308,16 @@ function Sidebar({
         >
           {children}
         </div>
+        {/* Resize handle */}
+        <div
+          aria-label="Resize Sidebar"
+          onMouseDown={onMouseDownResize}
+          className={cn(
+            "absolute top-0 z-20 h-full w-1 cursor-col-resize transition-[width,background-color,opacity] duration-150",
+            side === "left" ? "-right-1" : "-left-1",
+            isDragging ? "bg-primary/60 w-1" : "bg-transparent hover:bg-primary/60 hover:w-1"
+          )}
+        />
       </div>
     </div>
   )
