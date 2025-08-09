@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { ArrowUp, Image, X, Trash2, Loader2, FilePen, ChevronDown, ChevronUp, Cog } from "lucide-react"
+import { prototypeScenarios } from "@/data/prototypeScenarios"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -270,81 +271,51 @@ export function ChatSidebar() {
 
     // Then show actual response with file changes
     setTimeout(() => {
-      const fileOperations = [
-        [
-          {
-            id: "1",
-            filename: "src/components/Button.tsx",
-            action: "creating" as const,
-            changes: ["Adding new button component", "Implementing click handlers", "Setting up TypeScript interfaces"],
-            isLoading: true
-          },
-          {
-            id: "2",
-            filename: "src/styles/button.css",
-            action: "creating" as const,
-            changes: ["Adding button styles", "Implementing hover effects"],
-            isLoading: true
-          }
-        ],
-        [
-          {
-            id: "3",
-            filename: "src/components/Header.tsx",
-            action: "modifying" as const,
-            changes: ["Updating header background color", "Adjusting padding and margins", "Adding responsive breakpoints"],
-            isLoading: true
-          }
-        ],
-        [
-          {
-            id: "4",
-            filename: "src/hooks/useAuth.ts",
-            action: "creating" as const,
-            changes: ["Creating authentication hook", "Adding login/logout functions", "Implementing token management"],
-            isLoading: true
-          },
-          {
-            id: "5",
-            filename: "src/components/LoginForm.tsx",
-            action: "creating" as const,
-            changes: ["Building login form component", "Adding form validation", "Connecting to auth hook"],
-            isLoading: true
-          }
-        ]
-      ]
 
-      const randomFileChanges = fileOperations[Math.floor(Math.random() * fileOperations.length)]
 
-      // Remove thinking message and add file operations
-      setMessages((prev) => {
-        const filtered = prev.filter(msg => !msg.fileChanges?.some(fc => fc.id === "thinking"))
-        return [...filtered, {
-          id: (Date.now() + 1).toString(),
-          content: "",
-          role: "assistant",
-          timestamp: new Date(),
-          fileChanges: randomFileChanges
-        }]
+      const randomScenario = prototypeScenarios[Math.floor(Math.random() * prototypeScenarios.length)]
+
+      // Execute the scenario steps
+      let currentDelay = 0
+
+      // Remove thinking message first
+      setMessages((prev) => prev.filter(msg => !msg.fileChanges?.some(fc => fc.id === "thinking")))
+
+      randomScenario.steps.forEach((step, stepIndex) => {
+        setTimeout(() => {
+          if (step.thinking) {
+            // Add thinking as permanent text message
+            setMessages((prev) => [...prev, {
+              id: `thinking-${Date.now()}-${stepIndex}`,
+              content: step.thinking || "",
+              role: "assistant",
+              timestamp: new Date(),
+            }])
+          } else if (step.fileChanges) {
+            // Add file changes
+            setMessages((prev) => [...prev, {
+              id: `step-${Date.now()}-${stepIndex}`,
+              content: "",
+              role: "assistant",
+              timestamp: new Date(),
+              fileChanges: step.fileChanges
+            }])
+          }
+        }, currentDelay)
+
+        currentDelay += step.thinking ? 2000 : 2500 // Thinking takes 2s, file operations take 2.5s
       })
 
-      // After file operations complete, add summary message
+      // Add final summary
       setTimeout(() => {
-        const summaries = [
-          "Perfect! I've created your button component with modern styling and TypeScript support. The component is now ready to use in your app.",
-          "Great! I've updated your header component with improved responsive design and better visual hierarchy.",
-          "Excellent! I've implemented a complete authentication system with secure login functionality and user session management."
-        ]
-
-        const randomSummary = summaries[Math.floor(Math.random() * summaries.length)]
-
         setMessages((prev) => [...prev, {
-          id: (Date.now() + 2).toString(),
-          content: randomSummary,
+          id: `summary-${Date.now()}`,
+          content: randomScenario.summary,
           role: "assistant",
           timestamp: new Date(),
         }])
-      }, 3000) // Show summary after file operations
+      }, currentDelay + 1000)
+
     }, 2000)
   }
 
@@ -440,6 +411,11 @@ export function ChatSidebar() {
               <SelectItem value="Button Component">Button Component</SelectItem>
               <SelectItem value="Login Form">Login Form</SelectItem>
               <SelectItem value="API Integration">API Integration</SelectItem>
+              <SelectItem value="Dashboard UI">Dashboard UI</SelectItem>
+              <SelectItem value="User Authentication">User Authentication</SelectItem>
+              <SelectItem value="Data Visualization">Data Visualization</SelectItem>
+              <SelectItem value="File Upload">File Upload</SelectItem>
+              <SelectItem value="Search Feature">Search Feature</SelectItem>
             </SelectContent>
           </Select>
           <TooltipProvider>
@@ -502,7 +478,7 @@ export function ChatSidebar() {
                   <div className="w-full space-y-2">
                     {/* Show file changes for assistant messages */}
                     {message.fileChanges && message.fileChanges.length > 0 && (
-                      <div className="space-y-1 w-full max-w-full overflow-hidden">
+                      <div className="space-y-2 w-full max-w-full overflow-hidden">
                         {message.fileChanges.map((fileChange) => (
                           fileChange.id === "thinking" ? (
                             <TypingIndicator key={fileChange.id} />
