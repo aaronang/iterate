@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef } from "react"
-import { ArrowUp, Image, X, Trash2, Loader2, FilePen, ChevronDown, ChevronUp } from "lucide-react"
+import { ArrowUp, Image, X, Trash2, Loader2, FilePen, ChevronDown, ChevronUp, Cog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Tooltip,
   TooltipContent,
@@ -13,6 +20,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
 } from "@/components/ui/sidebar"
 
 interface Message {
@@ -199,6 +207,7 @@ export function ChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
+  const [chatTitle, setChatTitle] = useState("New chat")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Auto-resize textarea when input changes
@@ -224,6 +233,22 @@ export function ChatSidebar() {
     setInput("")
     setAttachedFiles([])
 
+    // Rename chat based on user's first message if it's currently "New chat"
+    if (chatTitle === "New chat" && input.trim()) {
+      const chatTitles = [
+        "Button Component",
+        "Login Form",
+        "API Integration",
+        "Dashboard UI",
+        "User Authentication",
+        "Data Visualization",
+        "File Upload",
+        "Search Feature"
+      ]
+      const randomTitle = chatTitles[Math.floor(Math.random() * chatTitles.length)]
+      setChatTitle(randomTitle)
+    }
+
     // Simulate AI response with progressive file changes
     // First show thinking indicator
     setTimeout(() => {
@@ -245,72 +270,81 @@ export function ChatSidebar() {
 
     // Then show actual response with file changes
     setTimeout(() => {
-      const responses = [
-        {
-          content: "I'll help you create that component! Let me set up the files for you.",
-          fileChanges: [
-            {
-              id: "1",
-              filename: "src/components/Button.tsx",
-              action: "creating" as const,
-              changes: ["Adding new button component", "Implementing click handlers", "Setting up TypeScript interfaces"],
-              isLoading: true
-            },
-            {
-              id: "2",
-              filename: "src/styles/button.css",
-              action: "creating" as const,
-              changes: ["Adding button styles", "Implementing hover effects"],
-              isLoading: true
-            }
-          ]
-        },
-        {
-          content: "I'll update the styling for you. Making those changes now.",
-          fileChanges: [
-            {
-              id: "3",
-              filename: "src/components/Header.tsx",
-              action: "modifying" as const,
-              changes: ["Updating header background color", "Adjusting padding and margins", "Adding responsive breakpoints"],
-              isLoading: true
-            }
-          ]
-        },
-        {
-          content: "Perfect! I'll add that functionality to your app.",
-          fileChanges: [
-            {
-              id: "4",
-              filename: "src/hooks/useAuth.ts",
-              action: "creating" as const,
-              changes: ["Creating authentication hook", "Adding login/logout functions", "Implementing token management"],
-              isLoading: true
-            },
-            {
-              id: "5",
-              filename: "src/components/LoginForm.tsx",
-              action: "creating" as const,
-              changes: ["Building login form component", "Adding form validation", "Connecting to auth hook"],
-              isLoading: true
-            }
-          ]
-        }
+      const fileOperations = [
+        [
+          {
+            id: "1",
+            filename: "src/components/Button.tsx",
+            action: "creating" as const,
+            changes: ["Adding new button component", "Implementing click handlers", "Setting up TypeScript interfaces"],
+            isLoading: true
+          },
+          {
+            id: "2",
+            filename: "src/styles/button.css",
+            action: "creating" as const,
+            changes: ["Adding button styles", "Implementing hover effects"],
+            isLoading: true
+          }
+        ],
+        [
+          {
+            id: "3",
+            filename: "src/components/Header.tsx",
+            action: "modifying" as const,
+            changes: ["Updating header background color", "Adjusting padding and margins", "Adding responsive breakpoints"],
+            isLoading: true
+          }
+        ],
+        [
+          {
+            id: "4",
+            filename: "src/hooks/useAuth.ts",
+            action: "creating" as const,
+            changes: ["Creating authentication hook", "Adding login/logout functions", "Implementing token management"],
+            isLoading: true
+          },
+          {
+            id: "5",
+            filename: "src/components/LoginForm.tsx",
+            action: "creating" as const,
+            changes: ["Building login form component", "Adding form validation", "Connecting to auth hook"],
+            isLoading: true
+          }
+        ]
       ]
 
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+      const randomFileChanges = fileOperations[Math.floor(Math.random() * fileOperations.length)]
 
-      // Remove thinking message and add actual response
+      // Remove thinking message and add file operations
       setMessages((prev) => {
         const filtered = prev.filter(msg => !msg.fileChanges?.some(fc => fc.id === "thinking"))
         return [...filtered, {
           id: (Date.now() + 1).toString(),
-          content: randomResponse.content,
+          content: "",
           role: "assistant",
           timestamp: new Date(),
-          fileChanges: randomResponse.fileChanges
+          fileChanges: randomFileChanges
         }]
       })
+
+      // After file operations complete, add summary message
+      setTimeout(() => {
+        const summaries = [
+          "Perfect! I've created your button component with modern styling and TypeScript support. The component is now ready to use in your app.",
+          "Great! I've updated your header component with improved responsive design and better visual hierarchy.",
+          "Excellent! I've implemented a complete authentication system with secure login functionality and user session management."
+        ]
+
+        const randomSummary = summaries[Math.floor(Math.random() * summaries.length)]
+
+        setMessages((prev) => [...prev, {
+          id: (Date.now() + 2).toString(),
+          content: randomSummary,
+          role: "assistant",
+          timestamp: new Date(),
+        }])
+      }, 3000) // Show summary after file operations
     }, 2000)
   }
 
@@ -395,6 +429,37 @@ export function ChatSidebar() {
 
   return (
     <Sidebar className="border-r">
+      <SidebarHeader className="p-4 border-b border-border">
+        <div className="flex items-center justify-between">
+          <Select value={chatTitle} onValueChange={setChatTitle}>
+            <SelectTrigger className="w-[180px] h-8 text-sm">
+              <SelectValue placeholder="New chat" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="New chat">New chat</SelectItem>
+              <SelectItem value="Button Component">Button Component</SelectItem>
+              <SelectItem value="Login Form">Login Form</SelectItem>
+              <SelectItem value="API Integration">API Integration</SelectItem>
+            </SelectContent>
+          </Select>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <Cog className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </SidebarHeader>
       <SidebarContent className="flex-1 p-0">
         <ScrollArea className="flex-1 pl-4 pr-3 overflow-x-hidden">
           <div className="space-y-4 py-4 min-w-0">
