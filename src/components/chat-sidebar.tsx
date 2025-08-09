@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Send, Paperclip, X } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Send, Image, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -36,6 +36,15 @@ export function ChatSidebar() {
   ])
   const [input, setInput] = useState("")
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-resize textarea when input changes
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 400) + 'px'
+    }
+  }, [input])
 
   const handleSendMessage = () => {
     if (!input.trim() && attachedFiles.length === 0) return
@@ -85,6 +94,12 @@ export function ChatSidebar() {
     const items = e.clipboardData?.items
     if (!items) return
 
+    // Check if we already have 3 attachments
+    if (attachedFiles.length >= 3) {
+      alert('Maximum 3 attachments allowed')
+      return
+    }
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
 
@@ -110,6 +125,12 @@ export function ChatSidebar() {
   }
 
   const handleAttachFile = () => {
+    // Check if we already have 3 attachments
+    if (attachedFiles.length >= 3) {
+      alert('Maximum 3 attachments allowed')
+      return
+    }
+
     // Create a file input element
     const input = document.createElement('input')
     input.type = 'file'
@@ -162,19 +183,24 @@ export function ChatSidebar() {
                 >
                   {/* Attachments */}
                   {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 space-y-1">
+                    <div className="mb-2 space-y-2">
                       {message.attachments.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center gap-2 text-xs opacity-90">
+                        <div key={attachment.id}>
                           {attachment.url && attachment.type.startsWith('image/') ? (
-                            <img
-                              src={attachment.url}
-                              alt={attachment.name}
-                              className="w-6 h-6 object-cover rounded"
-                            />
+                            <div className="space-y-1">
+                              <img
+                                src={attachment.url}
+                                alt={attachment.name}
+                                className="max-w-full max-h-48 object-contain rounded-md border"
+                              />
+                              <div className="text-xs opacity-70 truncate">{attachment.name}</div>
+                            </div>
                           ) : (
-                            <span>📄</span>
+                            <div className="flex items-center gap-2 text-xs opacity-90 p-2 bg-muted/50 rounded">
+                              <span>📄</span>
+                              <span className="truncate">{attachment.name}</span>
+                            </div>
                           )}
-                          <span className="truncate">{attachment.name}</span>
                         </div>
                       ))}
                     </div>
@@ -189,66 +215,90 @@ export function ChatSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div className="space-y-2">
-          {/* Attached Files Display */}
+        {/* Container that looks like a textarea */}
+        <div className="border rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+          {/* Attached images displayed inline */}
           {attachedFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2 p-2 bg-muted/50 rounded-md">
+            <div className="p-3 pb-0 flex flex-wrap gap-2">
               {attachedFiles.map((file) => (
-                <div key={file.id} className="flex items-center gap-2 bg-background rounded px-2 py-1 text-sm">
+                <div key={file.id} className="relative">
                   {file.url && file.type.startsWith('image/') ? (
-                    <img
-                      src={file.url}
-                      alt={file.name}
-                      className="w-8 h-8 object-cover rounded"
-                    />
+                    <div className="relative group/thumbnail">
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-20 h-20 object-cover rounded-lg border"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 flex items-center justify-center opacity-0 group-hover/thumbnail:opacity-100 transition-opacity duration-200"
+                        onClick={() => removeAttachedFile(file.id)}
+                      >
+                        <X className="h-2 w-2" />
+                      </Button>
+                    </div>
                   ) : (
-                    <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
-                      📄
+                    <div className="relative w-20 h-20 bg-muted rounded-lg border flex flex-col items-center justify-center group/file">
+                      <span className="text-2xl">📄</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute top-1 right-1 h-6 w-6 p-0 flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity duration-200"
+                        onClick={() => removeAttachedFile(file.id)}
+                      >
+                        <X className="h-2 w-2" />
+                      </Button>
                     </div>
                   )}
-                  <span className="truncate max-w-[120px]">{file.name}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => removeAttachedFile(file.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Textarea with toolbar */}
-          <div className="relative">
-            <Textarea
-              placeholder="Type your message or paste an image..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              onPaste={handlePaste}
-              className="min-h-[80px] resize-none pr-12 pb-12"
-              rows={3}
-            />
-            <div className="absolute bottom-2 right-2 flex gap-1">
+          {/* Auto-expanding textarea */}
+          <Textarea
+            ref={textareaRef}
+            placeholder="Describe your idea"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            onPaste={handlePaste}
+            className={`min-h-[80px] max-h-[400px] resize-none border-0 focus-visible:ring-0 shadow-none overflow-y-auto scrollbar-thin ${
+              attachedFiles.length > 0 ? 'pt-2' : ''
+            }`}
+            style={{
+              height: 'auto',
+              minHeight: '80px',
+              maxHeight: '400px'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(target.scrollHeight, 400) + 'px';
+            }}
+          />
+
+          {/* Bottom toolbar within the container */}
+          <div className="flex justify-between items-center p-2">
+            <div className="flex gap-1">
               <Button
                 onClick={handleAttachFile}
                 size="sm"
                 variant="ghost"
                 className="h-8 w-8 p-0"
               >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={handleSendMessage}
-                size="sm"
-                className="h-8 w-8 p-0"
-                disabled={!input.trim() && attachedFiles.length === 0}
-              >
-                <Send className="h-4 w-4" />
+                <Image className="h-4 w-4" />
               </Button>
             </div>
+            <Button
+              onClick={handleSendMessage}
+              size="sm"
+              className="h-8 w-8 p-0"
+              disabled={!input.trim() && attachedFiles.length === 0}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </SidebarFooter>
