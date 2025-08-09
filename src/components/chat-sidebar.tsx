@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { ArrowUp, Image, X, PackageSearch } from "lucide-react"
+import { ArrowUp, Image, X, Trash2, Loader2, FilePen, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -21,6 +21,170 @@ interface Message {
   role: "user" | "assistant"
   timestamp: Date
   attachments?: AttachedFile[]
+  fileChanges?: FileChange[]
+}
+
+interface FileChange {
+  id: string
+  filename: string
+  action: "modifying" | "creating" | "deleting"
+  changes: string[]
+  isLoading?: boolean
+}
+
+function TypingIndicator() {
+  return (
+    <div className="bg-muted/50 border rounded-lg px-3 py-2 mb-2 text-sm">
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+        <span className="font-medium">Thinking...</span>
+      </div>
+    </div>
+  )
+}
+
+function FileChangeIndicator({ fileChange }: { fileChange: FileChange }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [visibleChanges, setVisibleChanges] = useState<string[]>([])
+  const [isComplete, setIsComplete] = useState(false)
+
+  useEffect(() => {
+    if (fileChange.isLoading) {
+      // Show changes progressively
+      fileChange.changes.forEach((change, index) => {
+        setTimeout(() => {
+          setVisibleChanges(prev => [...prev, change])
+          if (index === fileChange.changes.length - 1) {
+            setTimeout(() => setIsComplete(true), 500)
+          }
+        }, (index + 1) * 800) // 800ms delay between each change
+      })
+    } else {
+      // Show all changes immediately for non-loading states
+      setVisibleChanges(fileChange.changes)
+      setIsComplete(true)
+    }
+  }, [fileChange])
+
+  const getIcon = () => {
+    if (fileChange.isLoading && !isComplete) {
+      return <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+    }
+
+    switch (fileChange.action) {
+      case "creating":
+        return <FilePen className="h-3 w-3 text-muted-foreground" />
+      case "modifying":
+        return <FilePen className="h-3 w-3 text-muted-foreground" />
+      case "deleting":
+        return <Trash2 className="h-3 w-3 text-muted-foreground" />
+    }
+  }
+
+  const getActionText = () => {
+    if (fileChange.isLoading && !isComplete) {
+      switch (fileChange.action) {
+        case "creating":
+          return "Creating file"
+        case "modifying":
+          return "Edited file"
+        case "deleting":
+          return "Deleting file"
+      }
+    }
+
+    switch (fileChange.action) {
+      case "creating":
+        return "Created file"
+      case "modifying":
+        return "Edited file"
+      case "deleting":
+        return "Deleted file"
+    }
+  }
+
+  const hasChanges = visibleChanges.length > 0
+
+  // Custom truncation that shows the end of the path (filename)
+  const formatFilePath = (filepath: string) => {
+    const parts = filepath.split('/')
+    if (parts.length <= 2) return filepath
+
+    // For long paths, show ".../" + last two parts
+    const lastTwo = parts.slice(-2).join('/')
+    return `.../${lastTwo}`
+  }
+
+  return (
+    <div className="bg-muted/50 border rounded-lg mb-2 text-sm overflow-hidden w-full">
+      <div
+        className={`flex items-center px-3 py-2 w-full overflow-hidden ${hasChanges ? 'cursor-pointer hover:bg-muted/70' : ''}`}
+        onClick={() => hasChanges && setIsExpanded(!isExpanded)}
+      >
+        <div className="flex-shrink-0 mr-2">
+          {getIcon()}
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <div className="flex items-center gap-1 w-full overflow-hidden">
+            <span className="font-medium shrink-0 whitespace-nowrap">{getActionText()}</span>
+            <span className="text-muted-foreground truncate flex-1 overflow-hidden">
+              {formatFilePath(fileChange.filename)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          {hasChanges && (
+            <div>
+              {isExpanded ? (
+                <ChevronUp className="h-3 w-3 text-muted-foreground" strokeWidth={2.25}/>
+              ) : (
+                <ChevronDown className="h-3 w-3 text-muted-foreground" strokeWidth={2.25}/>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isExpanded && hasChanges && (
+        <div className="border-t border-muted">
+          <div className="px-3 py-2 bg-muted/30">
+            <div className="text-xs font-mono text-muted-foreground space-y-1">
+              {fileChange.action === "creating" && (
+                <>
+                  <div className="text-green-600 dark:text-green-400">+ export function Button() {"{"}</div>
+                  <div className="text-green-600 dark:text-green-400">+   return (</div>
+                  <div className="text-green-600 dark:text-green-400">+     &lt;button className="px-4 py-2"&gt;</div>
+                  <div className="text-green-600 dark:text-green-400">+       Click me</div>
+                  <div className="text-green-600 dark:text-green-400">+     &lt;/button&gt;</div>
+                  <div className="text-green-600 dark:text-green-400">+   )</div>
+                  <div className="text-green-600 dark:text-green-400">+ {"}"}</div>
+                </>
+              )}
+              {fileChange.action === "modifying" && (
+                <>
+                  <div className="text-muted-foreground">  export function Button() {"{"}</div>
+                  <div className="text-red-600 dark:text-red-400">-   return &lt;button&gt;Old Button&lt;/button&gt;</div>
+                  <div className="text-green-600 dark:text-green-400">+   return (</div>
+                  <div className="text-green-600 dark:text-green-400">+     &lt;button className="px-4 py-2 bg-blue-500"&gt;</div>
+                  <div className="text-green-600 dark:text-green-400">+       New Button</div>
+                  <div className="text-green-600 dark:text-green-400">+     &lt;/button&gt;</div>
+                  <div className="text-green-600 dark:text-green-400">+   )</div>
+                  <div className="text-muted-foreground">  {"}"}</div>
+                </>
+              )}
+              {fileChange.action === "deleting" && (
+                <>
+                  <div className="text-red-600 dark:text-red-400">- export function Button() {"{"}</div>
+                  <div className="text-red-600 dark:text-red-400">-   return &lt;button&gt;Button&lt;/button&gt;</div>
+                  <div className="text-red-600 dark:text-red-400">- {"}"}</div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface AttachedFile {
@@ -32,14 +196,7 @@ interface AttachedFile {
 }
 
 export function ChatSidebar() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: "Hello! I'm your AI assistant. How can I help you today?",
-      role: "assistant",
-      timestamp: new Date(),
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -67,26 +224,94 @@ export function ChatSidebar() {
     setInput("")
     setAttachedFiles([])
 
-    // Simulate AI response
+    // Simulate AI response with progressive file changes
+    // First show thinking indicator
+    setTimeout(() => {
+      const thinkingMessage: Message = {
+        id: Date.now().toString(),
+        content: "",
+        role: "assistant",
+        timestamp: new Date(),
+        fileChanges: [{
+          id: "thinking",
+          filename: "",
+          action: "modifying" as const,
+          changes: [],
+          isLoading: true
+        }]
+      }
+      setMessages((prev) => [...prev, thinkingMessage])
+    }, 500)
+
+    // Then show actual response with file changes
     setTimeout(() => {
       const responses = [
-        "I understand your message. How can I help you further?",
-        "That's an interesting question! Let me think about that...",
-        "I'm here to assist you with your development needs.",
-        "Thanks for your message! What would you like to work on?",
-        "I can help you with coding, debugging, or planning your project.",
+        {
+          content: "I'll help you create that component! Let me set up the files for you.",
+          fileChanges: [
+            {
+              id: "1",
+              filename: "src/components/Button.tsx",
+              action: "creating" as const,
+              changes: ["Adding new button component", "Implementing click handlers", "Setting up TypeScript interfaces"],
+              isLoading: true
+            },
+            {
+              id: "2",
+              filename: "src/styles/button.css",
+              action: "creating" as const,
+              changes: ["Adding button styles", "Implementing hover effects"],
+              isLoading: true
+            }
+          ]
+        },
+        {
+          content: "I'll update the styling for you. Making those changes now.",
+          fileChanges: [
+            {
+              id: "3",
+              filename: "src/components/Header.tsx",
+              action: "modifying" as const,
+              changes: ["Updating header background color", "Adjusting padding and margins", "Adding responsive breakpoints"],
+              isLoading: true
+            }
+          ]
+        },
+        {
+          content: "Perfect! I'll add that functionality to your app.",
+          fileChanges: [
+            {
+              id: "4",
+              filename: "src/hooks/useAuth.ts",
+              action: "creating" as const,
+              changes: ["Creating authentication hook", "Adding login/logout functions", "Implementing token management"],
+              isLoading: true
+            },
+            {
+              id: "5",
+              filename: "src/components/LoginForm.tsx",
+              action: "creating" as const,
+              changes: ["Building login form component", "Adding form validation", "Connecting to auth hook"],
+              isLoading: true
+            }
+          ]
+        }
       ]
 
       const randomResponse = responses[Math.floor(Math.random() * responses.length)]
 
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: randomResponse,
-        role: "assistant",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMessage])
-    }, 1000)
+      // Remove thinking message and add actual response
+      setMessages((prev) => {
+        const filtered = prev.filter(msg => !msg.fileChanges?.some(fc => fc.id === "thinking"))
+        return [...filtered, {
+          id: (Date.now() + 1).toString(),
+          content: randomResponse.content,
+          role: "assistant",
+          timestamp: new Date(),
+          fileChanges: randomResponse.fileChanges
+        }]
+      })
+    }, 2000)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -171,49 +396,66 @@ export function ChatSidebar() {
   return (
     <Sidebar className="border-r">
       <SidebarContent className="flex-1 p-0">
-        <ScrollArea className="flex-1 px-4">
-          <div className="space-y-4 py-4">
+        <ScrollArea className="flex-1 pl-4 pr-3 overflow-x-hidden">
+          <div className="space-y-4 py-4 min-w-0">
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  {/* Attachments */}
-                  {message.attachments && message.attachments.length > 0 && (
-                    <div className="mb-2 space-y-2">
-                      {message.attachments.map((attachment) => (
-                        <div key={attachment.id}>
-                          {attachment.url && attachment.type.startsWith('image/') ? (
-                            <div className="space-y-1">
-                              <img
-                                src={attachment.url}
-                                alt={attachment.name}
-                                className="max-w-full max-h-48 object-contain rounded-md border"
-                              />
-                              <div className="text-xs opacity-70 truncate">{attachment.name}</div>
+              <div key={message.id}>
+                {message.role === "user" ? (
+                  /* User messages - keep in bubbles, right-aligned */
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-primary text-primary-foreground">
+                      {/* Attachments */}
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mb-2 space-y-2">
+                          {message.attachments.map((attachment) => (
+                            <div key={attachment.id}>
+                              {attachment.url && attachment.type.startsWith('image/') ? (
+                                <div className="space-y-1">
+                                  <img
+                                    src={attachment.url}
+                                    alt={attachment.name}
+                                    className="max-w-full max-h-48 object-contain rounded-md border"
+                                  />
+                                  <div className="text-xs opacity-70 truncate">{attachment.name}</div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-xs opacity-90 p-2 bg-primary-foreground/20 rounded">
+                                  <span>📄</span>
+                                  <span className="truncate">{attachment.name}</span>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-xs opacity-90 p-2 bg-muted/50 rounded">
-                              <span>📄</span>
-                              <span className="truncate">{attachment.name}</span>
-                            </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      {/* Message content */}
+                      {message.content && <div>{message.content}</div>}
                     </div>
-                  )}
-                  {/* Message content */}
-                  {message.content && <div>{message.content}</div>}
-                </div>
+                  </div>
+                ) : (
+                  /* Assistant messages - full width, no bubble */
+                  <div className="w-full space-y-2">
+                    {/* Show file changes for assistant messages */}
+                    {message.fileChanges && message.fileChanges.length > 0 && (
+                      <div className="space-y-1 w-full max-w-full overflow-hidden">
+                        {message.fileChanges.map((fileChange) => (
+                          fileChange.id === "thinking" ? (
+                            <TypingIndicator key={fileChange.id} />
+                          ) : (
+                            <FileChangeIndicator key={fileChange.id} fileChange={fileChange} />
+                          )
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Message content - no bubble styling */}
+                    {message.content && (
+                      <div className="text-sm text-foreground py-1">
+                        {message.content}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -305,26 +547,7 @@ export function ChatSidebar() {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={() => {
-                        // TODO: Add package search functionality
-                        console.log('Package search clicked')
-                      }}
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                    >
-                      <PackageSearch className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Browse components</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+
             </div>
             <TooltipProvider>
               <Tooltip>

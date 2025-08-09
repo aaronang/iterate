@@ -70,10 +70,10 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
-  const minSidebarWidthPx = 240
+  const minSidebarWidthPx = 400
   const maxSidebarWidthPx = 640
-  // Default to 320px to match previous w-80 and provide a comfortable starting width
-  const [sidebarWidthPx, setSidebarWidthPx] = React.useState<number>(320)
+  // Default to 400px to match minimum width and provide a comfortable starting width
+  const [sidebarWidthPx, setSidebarWidthPx] = React.useState<number>(400)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.

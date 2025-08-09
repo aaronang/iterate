@@ -1,5 +1,6 @@
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ChatSidebar } from "@/components/chat-sidebar"
+import { AdminPanel } from "@/components/admin-panel"
 
 function App() {
   return (
@@ -10,6 +11,8 @@ function App() {
           {/* Preview area - empty for now */}
         </main>
       </div>
+      {/* Admin Panel - positioned absolutely, separate from main app */}
+      <AdminPanel />
     </SidebarProvider>
   )
 }
